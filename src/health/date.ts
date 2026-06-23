@@ -15,12 +15,20 @@ export function addDays(date: string, days: number): string {
 
 export function defaultDateForTimeZone(now: Date, timeZone: string): string {
   const yesterday = new Date(now.valueOf() - 24 * 60 * 60 * 1000);
+  return dateForTimeZone(yesterday, timeZone);
+}
+
+export function currentDateForTimeZone(now: Date, timeZone: string): string {
+  return dateForTimeZone(now, timeZone);
+}
+
+function dateForTimeZone(date: Date, timeZone: string): string {
   const parts = new Intl.DateTimeFormat("en-CA", {
     timeZone,
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
-  }).formatToParts(yesterday);
+  }).formatToParts(date);
 
   const year = parts.find((part) => part.type === "year")?.value;
   const month = parts.find((part) => part.type === "month")?.value;

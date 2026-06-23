@@ -27,10 +27,10 @@ Never prefix these variables with `NEXT_PUBLIC_`.
 
 ## Daily health sync
 
-Vercel Cron calls `GET /api/health/cron` every day at `04:30 UTC`. The route:
+Vercel Cron calls `GET /api/health/cron` every two hours. The route:
 
 - verifies `Authorization: Bearer $CRON_SECRET`
-- fetches yesterday's Google Health data in `GOOGLE_HEALTH_TIME_ZONE`
+- fetches yesterday and today in `GOOGLE_HEALTH_TIME_ZONE`
 - creates `health_daily` in Postgres if needed
 - upserts sanitized daily aggregates only
 
@@ -39,6 +39,14 @@ Manual backfill:
 ```sh
 curl -H "Authorization: Bearer $CRON_SECRET" \
   "https://your-vercel-domain.example/api/health/cron?date=2026-06-22"
+```
+
+Simpler local commands:
+
+```sh
+npm run health:sync -- 2026-06-22
+npm run health:sync:today
+npm run health:backfill -- 2026-05-05 2026-06-23
 ```
 
 The public homepage reads the latest stored rows from Neon. It never calls Google Health from the browser.

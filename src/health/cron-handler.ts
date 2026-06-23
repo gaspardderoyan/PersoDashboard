@@ -1,4 +1,4 @@
-import { defaultDateForTimeZone, isIsoDate } from "./date";
+import { currentDateForTimeZone, defaultDateForTimeZone, isIsoDate } from "./date";
 import { fetchHealthSnapshot } from "./collect";
 import { DatabaseConfigError, createHealthStore } from "./store";
 import { requireBearerToken } from "./auth";
@@ -12,15 +12,18 @@ type HealthCronRequestDeps = {
   store?: HealthStore;
 };
 
-function getRequestedDate(request: Request, env: Env, now: () => Date): string {
+function getRequestedDates(request: Request, env: Env, now: () => Date): string[] {
   const url = new URL(request.url);
   const requestedDate = url.searchParams.get("date");
 
   if (requestedDate) {
-    return requestedDate;
+    return [requestedDate];
   }
 
-  return defaultDateForTimeZone(now(), env.GOOGLE_HEALTH_TIME_ZONE ?? "Europe/Paris");
+  const timeZone = env.GOOGLE_HEALTH_TIME_ZONE ?? "Europe/Paris";
+  const currentDate = currentDateForTimeZone(now(), timeZone);
+  const previousDate = defaultDateForTimeZone(now(), timeZone);
+  return previousDate === currentDate ? [currentDate] : [previousDate, currentDate];
 }
 
 function publicErrorCode(error: unknown): string {
@@ -48,8 +51,8 @@ export async function handleHealthCronRequest(
     return auth.response;
   }
 
-  const date = getRequestedDate(request, env, now);
-  if (!isIsoDate(date)) {
+  const dates = getRequestedDates(request, env, now);
+  if (dates.some((date) => !isIsoDate(date))) {
     return Response.json({ error: "invalid_date", expected: "YYYY-MM-DD" }, { status: 400 });
   }
 
@@ -57,20 +60,24 @@ export async function handleHealthCronRequest(
     const healthStore = store ?? createHealthStore(env);
     await healthStore.ensureSchema();
 
-    const snapshot = await fetchHealthSnapshot({
-      date,
-      env,
-      now,
-      healthClient,
-    });
-
-    const record = await healthStore.upsertDailySnapshot(snapshot);
+    const records = [];
+    for (const date of dates) {
+      const snapshot = await fetchHealthSnapshot({
+        date,
+        env,
+        now,
+        healthClient,
+      });
+      records.push(await healthStore.upsertDailySnapshot(snapshot));
+    }
 
     return Response.json({
       ok: true,
-      date: record.date,
-      fetchedAt: record.fetchedAt,
-      updatedAt: record.updatedAt,
+      records: records.map((record) => ({
+        date: record.date,
+        fetchedAt: record.fetchedAt,
+        updatedAt: record.updatedAt,
+      })),
     });
   } catch (error) {
     const code = publicErrorCode(error);

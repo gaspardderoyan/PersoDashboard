@@ -100,9 +100,13 @@ describe("handleHealthCronRequest", () => {
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toEqual({
       ok: true,
-      date: "2026-06-22",
-      fetchedAt: "2026-06-23T12:00:00.000Z",
-      updatedAt: "2026-06-23T12:00:01.000Z",
+      records: [
+        {
+          date: "2026-06-22",
+          fetchedAt: "2026-06-23T12:00:00.000Z",
+          updatedAt: "2026-06-23T12:00:01.000Z",
+        },
+      ],
     });
 
     expect(store.ensureSchema).toHaveBeenCalledOnce();
@@ -120,6 +124,36 @@ describe("handleHealthCronRequest", () => {
       unavailable: {},
       fetchedAt: "2026-06-23T12:00:00.000Z",
     });
+  });
+
+  it("stores yesterday and today when no date is requested", async () => {
+    const client = createMockClient();
+    const store = createMockStore();
+    const response = await handleHealthCronRequest(request("/api"), {
+      env,
+      now: () => new Date("2026-06-23T12:00:00.000Z"),
+      healthClient: client,
+      store,
+    });
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({
+      ok: true,
+      records: [
+        {
+          date: "2026-06-22",
+          fetchedAt: "2026-06-23T12:00:00.000Z",
+          updatedAt: "2026-06-23T12:00:01.000Z",
+        },
+        {
+          date: "2026-06-23",
+          fetchedAt: "2026-06-23T12:00:00.000Z",
+          updatedAt: "2026-06-23T12:00:01.000Z",
+        },
+      ],
+    });
+
+    expect(store.upsertDailySnapshot).toHaveBeenCalledTimes(2);
   });
 
   it("returns sanitized database configuration errors", async () => {

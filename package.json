@@ -6,6 +6,9 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "health:backfill": "node scripts/health-sync.mjs backfill",
+    "health:sync": "node scripts/health-sync.mjs sync",
+    "health:sync:today": "node scripts/health-sync.mjs today",
     "start": "next start",
     "typecheck": "next typegen && tsc --noEmit",
     "test": "vitest run",
