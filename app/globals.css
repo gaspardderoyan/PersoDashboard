@@ -162,7 +162,8 @@ h2 {
 
 .heatmap {
   display: grid;
-  grid-template-columns: repeat(28, minmax(20px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(18px, 1fr));
+  grid-auto-rows: 88px;
   gap: 5px;
   min-height: 112px;
   align-items: end;
@@ -275,7 +276,7 @@ h2 {
   }
 
   .heatmap {
-    grid-template-columns: repeat(14, minmax(18px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(16px, 1fr));
   }
 }
 }
