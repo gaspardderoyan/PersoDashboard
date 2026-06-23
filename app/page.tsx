@@ -1,5 +1,11 @@
 import { getRecentHealthDailyRecords } from "@/src/health/public-data";
 import type { HealthDailyRecord } from "@/src/health/types";
+import { getPublicWakaTimeCodingStats } from "@/src/wakatime/public-data";
+import type {
+  PublicWakaTimeCodingStats,
+  WakaTimeBreakdownItem,
+  WakaTimeDailyTotal,
+} from "@/src/wakatime/types";
 
 export const dynamic = "force-dynamic";
 
@@ -34,6 +40,22 @@ function formatDuration(minutes: number | null) {
   return `${hours}h ${remainder.toString().padStart(2, "0")}m`;
 }
 
+function formatCodingDuration(seconds: number | null) {
+  if (seconds === null) {
+    return "--";
+  }
+
+  const minutes = Math.round(seconds / 60);
+  const hours = Math.floor(minutes / 60);
+  const remainder = minutes % 60;
+
+  if (hours === 0) {
+    return `${remainder}m`;
+  }
+
+  return `${hours}h ${remainder.toString().padStart(2, "0")}m`;
+}
+
 function getIntensity(value: number | null, max: number) {
   if (value === null || max === 0) {
     return 0;
@@ -49,13 +71,132 @@ function MetricCard({
 }: {
   label: string;
   value: string;
-  accent: "mint" | "orange" | "pink";
+  accent: "mint" | "orange" | "pink" | "violet";
 }) {
   return (
     <article className={`metric-card metric-card--${accent}`}>
       <span>{label}</span>
       <strong>{value}</strong>
     </article>
+  );
+}
+
+function CodingHeatmap({ days }: { days: WakaTimeDailyTotal[] }) {
+  const maxSeconds = Math.max(...days.map((day) => day.totalSeconds), 0);
+
+  return (
+    <div className="heatmap heatmap--coding" aria-label="recent coding hours">
+      {days.map((day) => {
+        const intensity = getIntensity(day.totalSeconds, maxSeconds);
+
+        return (
+          <div
+            key={day.date}
+            className="heatmap-cell heatmap-cell--coding"
+            style={{
+              opacity: day.totalSeconds === 0 ? 0.24 : 0.36 + intensity * 0.64,
+              transform: `translateY(${(1 - intensity) * 8}px)`,
+            }}
+            title={`${formatDateLong(day.date)}: ${formatCodingDuration(day.totalSeconds)}`}
+          >
+            <span>{formatDate(day.date)}</span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function SplitRows({
+  label,
+  items,
+  accent,
+}: {
+  label: string;
+  items: WakaTimeBreakdownItem[];
+  accent: "language" | "editor";
+}) {
+  return (
+    <section className={`split-panel split-panel--${accent}`} aria-label={`top ${label}`}>
+      <div className="split-panel__heading">
+        <span>{label}</span>
+        <strong>{items.length ? "top 5" : "no signal"}</strong>
+      </div>
+      <div className="split-list">
+        {items.length ? (
+          items.map((item) => (
+            <div key={item.name} className="split-row">
+              <div>
+                <span>{item.name}</span>
+                <strong>{item.text}</strong>
+              </div>
+              <div className="split-meter" aria-hidden="true">
+                <span
+                  style={{
+                    width: `${item.percent}%`,
+                    backgroundColor: item.color ?? undefined,
+                  }}
+                />
+              </div>
+              <em>{item.percent.toFixed(1)}%</em>
+            </div>
+          ))
+        ) : (
+          <div className="split-empty">--</div>
+        )}
+      </div>
+    </section>
+  );
+}
+
+function CodingBand({ stats }: { stats: PublicWakaTimeCodingStats }) {
+  const hasCodingSignal = stats.dailyTotals.some((day) => day.totalSeconds > 0);
+
+  return (
+    <section className="panel-band panel-band--coding">
+      <div className="section-heading">
+        <div>
+          <p className="eyebrow">WakaTime / Coding</p>
+          <h2>coding hours</h2>
+        </div>
+        <span>
+          {stats.fetchedAt ? `fetched ${new Date(stats.fetchedAt).toLocaleString("en-GB")}` : "offline"}
+        </span>
+      </div>
+
+      <section className="metric-grid" aria-label="coding totals">
+        <MetricCard
+          label="today"
+          value={formatCodingDuration(stats.todayTotal.totalSeconds)}
+          accent="violet"
+        />
+        <MetricCard
+          label="last 7 days"
+          value={formatCodingDuration(stats.last7Total.totalSeconds)}
+          accent="mint"
+        />
+        <MetricCard
+          label="active-day avg"
+          value={formatCodingDuration(stats.activeDayAverage.totalSeconds)}
+          accent="orange"
+        />
+      </section>
+
+      {hasCodingSignal ? (
+        <>
+          <CodingHeatmap days={stats.dailyTotals} />
+          <div className="split-grid">
+            <SplitRows label="languages" items={stats.topLanguages} accent="language" />
+            <SplitRows label="editors" items={stats.topEditors} accent="editor" />
+          </div>
+        </>
+      ) : (
+        <div className="empty-panel">
+          <span>101</span>
+          <strong>Coding stats unavailable</strong>
+        </div>
+      )}
+    </section>
   );
 }
 
@@ -140,7 +281,10 @@ function DailyRows({ records }: { records: HealthDailyRecord[] }) {
 }
 
 export default async function Home() {
-  const records = await getRecentHealthDailyRecords();
+  const [records, codingStats] = await Promise.all([
+    getRecentHealthDailyRecords(),
+    getPublicWakaTimeCodingStats(),
+  ]);
   const latest = records[0];
 
   return (
@@ -169,6 +313,8 @@ export default async function Home() {
           accent="pink"
         />
       </section>
+
+      <CodingBand stats={codingStats} />
 
       <section className="panel-band">
         <div className="section-heading">
