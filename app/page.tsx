@@ -1,6 +1,13 @@
 import { getRecentHealthDailyRecords } from "@/src/health/public-data";
 import type { HealthDailyRecord } from "@/src/health/types";
 import type { TrackedActiveMinuteLevel } from "@/src/health/active-minutes";
+import { getPublicFortyTwoDashboardStats } from "@/src/fortytwo/public-data";
+import type {
+  FortyTwoDailyLogtime,
+  FortyTwoLevelPoint,
+  FortyTwoRankPoint,
+  PublicFortyTwoDashboardStats,
+} from "@/src/fortytwo/types";
 import { getPublicRescueTimeComputerStats } from "@/src/rescuetime/public-data";
 import type { PublicRescueTimeComputerStats } from "@/src/rescuetime/types";
 import { getPublicWakaTimeCodingStats } from "@/src/wakatime/public-data";
@@ -41,6 +48,34 @@ function formatDuration(minutes: number | null) {
   const hours = Math.floor(minutes / 60);
   const remainder = minutes % 60;
   return `${hours}h ${remainder.toString().padStart(2, "0")}m`;
+}
+
+function formatCompactMinuteDuration(minutes: number | null) {
+  if (minutes === null) {
+    return "--";
+  }
+
+  const roundedMinutes = Math.round(Math.max(0, minutes));
+  const hours = Math.floor(roundedMinutes / 60);
+  const remainder = roundedMinutes % 60;
+
+  if (hours === 0) {
+    return `${remainder}m`;
+  }
+
+  return `${hours}h ${remainder.toString().padStart(2, "0")}m`;
+}
+
+function formatLevel(level: number | null) {
+  return level === null ? "--" : level.toFixed(2);
+}
+
+function formatRank(rank: number | null, population: number | null) {
+  return rank === null || population === null ? "--" : `#${formatNumber(rank)} / ${formatNumber(population)}`;
+}
+
+function formatPercentile(percentile: number | null) {
+  return percentile === null ? "--" : `p${percentile.toFixed(1)}`;
 }
 
 function formatCodingDuration(seconds: number | null) {
@@ -197,6 +232,196 @@ function CodingBand({ stats }: { stats: PublicWakaTimeCodingStats }) {
         <div className="empty-panel">
           <span>101</span>
           <strong>Coding stats unavailable</strong>
+        </div>
+      )}
+    </section>
+  );
+}
+
+function FortyTwoHeatmap({ days }: { days: FortyTwoDailyLogtime[] }) {
+  const activeDays = days.map((day) => day.totalMinutes).filter((minutes) => minutes > 0);
+  const sortedActiveDays = [...activeDays].sort((a, b) => a - b);
+  const cappedMax =
+    sortedActiveDays[Math.max(0, Math.ceil(sortedActiveDays.length * 0.95) - 1)] ??
+    Math.max(...days.map((day) => day.totalMinutes), 0);
+
+  return (
+    <div className="heatmap heatmap--fortytwo" aria-label="recent 42 campus logtime">
+      {days.map((day) => {
+        const intensity = getIntensity(day.totalMinutes, cappedMax);
+
+        return (
+          <div
+            key={day.date}
+            className="heatmap-cell heatmap-cell--fortytwo"
+            style={{
+              opacity: day.totalMinutes === 0 ? 0.22 : 0.38 + intensity * 0.62,
+              transform: `translateY(${(1 - intensity) * 8}px)`,
+            }}
+            title={`${formatDateLong(day.date)}: ${formatCompactMinuteDuration(day.totalMinutes)}`}
+          >
+            <span>{formatDate(day.date)}</span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function progressPath(points: { x: number; y: number }[]) {
+  return points
+    .map((point, index) => `${index === 0 ? "M" : "L"} ${point.x.toFixed(2)} ${point.y.toFixed(2)}`)
+    .join(" ");
+}
+
+function ProgressChart({
+  title,
+  points,
+  variant,
+}: {
+  title: string;
+  points: {
+    date: string;
+    value: number;
+    label: string;
+  }[];
+  variant: "level" | "rank";
+}) {
+  const width = 520;
+  const height = 180;
+  const padding = 18;
+  const values = points.map((point) => point.value);
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  const yMin = values.length === 0 ? 0 : min === max ? min - 0.5 : min;
+  const yMax = values.length === 0 ? 1 : min === max ? max + 0.5 : max;
+  const plottedPoints = points.map((point, index) => {
+    const x =
+      points.length === 1
+        ? width / 2
+        : padding + (index / (points.length - 1)) * (width - padding * 2);
+    const y = padding + ((yMax - point.value) / (yMax - yMin)) * (height - padding * 2);
+
+    return { ...point, x, y };
+  });
+
+  return (
+    <section className={`chart-panel chart-panel--${variant}`} aria-label={title}>
+      <div className="chart-panel__heading">
+        <span>{title}</span>
+        <strong>{points.length ? `${points.length} snapshot${points.length === 1 ? "" : "s"}` : "no signal"}</strong>
+      </div>
+      {points.length ? (
+        <svg className="line-chart" viewBox={`0 0 ${width} ${height}`} role="img">
+          <title>{title}</title>
+          <path className="line-chart__grid" d={`M ${padding} ${height - padding} H ${width - padding}`} />
+          {plottedPoints.length > 1 ? (
+            <path className="line-chart__path" d={progressPath(plottedPoints)} />
+          ) : null}
+          {plottedPoints.map((point) => (
+            <g key={`${point.date}-${point.label}`}>
+              <circle className="line-chart__dot" cx={point.x} cy={point.y} r="5" />
+              <title>{`${formatDateLong(point.date)}: ${point.label}`}</title>
+            </g>
+          ))}
+        </svg>
+      ) : (
+        <div className="line-chart__empty">--</div>
+      )}
+      <div className="chart-panel__axis">
+        <span>{points[0] ? formatDate(points[0].date) : "--"}</span>
+        <strong>{points.at(-1)?.label ?? "--"}</strong>
+        <span>{points.at(-1) ? formatDate(points.at(-1)!.date) : "--"}</span>
+      </div>
+    </section>
+  );
+}
+
+function LevelProgressChart({ points }: { points: FortyTwoLevelPoint[] }) {
+  return (
+    <ProgressChart
+      title="level progression"
+      variant="level"
+      points={points.map((point) => ({
+        date: point.date,
+        value: point.level,
+        label: point.level.toFixed(2),
+      }))}
+    />
+  );
+}
+
+function RankProgressChart({ points }: { points: FortyTwoRankPoint[] }) {
+  return (
+    <ProgressChart
+      title="rank in cohort"
+      variant="rank"
+      points={points.map((point) => ({
+        date: point.date,
+        value: point.rank,
+        label: `#${formatNumber(point.rank)} / ${formatNumber(point.population)}`,
+      }))}
+    />
+  );
+}
+
+function FortyTwoBand({ stats }: { stats: PublicFortyTwoDashboardStats }) {
+  const hasFortyTwoSignal =
+    stats.dailyLogtime.some((day) => day.totalMinutes > 0) ||
+    stats.level !== null ||
+    stats.cohortRank.rank !== null;
+
+  return (
+    <section className="panel-band panel-band--fortytwo">
+      <div className="section-heading">
+        <div>
+          <p className="eyebrow">42 / Paris</p>
+          <h2>campus signal</h2>
+        </div>
+        <span>
+          {stats.fetchedAt ? `fetched ${new Date(stats.fetchedAt).toLocaleString("en-GB")}` : "offline"}
+        </span>
+      </div>
+
+      <section className="metric-grid metric-grid--four" aria-label="42 campus totals">
+        <MetricCard
+          label="today logtime"
+          value={formatCompactMinuteDuration(stats.todayLogtime.totalMinutes)}
+          accent="mint"
+        />
+        <MetricCard
+          label="last 30 days"
+          value={formatCompactMinuteDuration(stats.last30Logtime.totalMinutes)}
+          accent="orange"
+        />
+        <MetricCard
+          label={`${stats.cursus ?? "cursus"} level`}
+          value={formatLevel(stats.level)}
+          accent="violet"
+        />
+        <MetricCard
+          label={`${formatPercentile(stats.cohortRank.percentile)} cohort rank`}
+          value={formatRank(stats.cohortRank.rank, stats.cohortRank.population)}
+          accent="pink"
+        />
+      </section>
+
+      {hasFortyTwoSignal ? (
+        <>
+          <FortyTwoHeatmap days={stats.dailyLogtime} />
+          <div className="chart-grid">
+            <LevelProgressChart points={stats.levelProgression} />
+            <RankProgressChart points={stats.rankProgression} />
+          </div>
+          <div className="cohort-caption">
+            <span>{stats.cohortRank.label}</span>
+            <strong>{stats.grade ?? "student"} at {stats.campus ?? "campus"}</strong>
+          </div>
+        </>
+      ) : (
+        <div className="empty-panel">
+          <span>042</span>
+          <strong>42 stats unavailable</strong>
         </div>
       )}
     </section>
@@ -368,8 +593,9 @@ function DailyRows({ records }: { records: HealthDailyRecord[] }) {
 }
 
 export default async function Home() {
-  const [records, codingStats, rescueTimeStats] = await Promise.all([
+  const [records, fortyTwoStats, codingStats, rescueTimeStats] = await Promise.all([
     getRecentHealthDailyRecords(),
+    getPublicFortyTwoDashboardStats(),
     getPublicWakaTimeCodingStats(),
     getPublicRescueTimeComputerStats(),
   ]);
@@ -402,6 +628,7 @@ export default async function Home() {
         />
       </section>
 
+      <FortyTwoBand stats={fortyTwoStats} />
       <CodingBand stats={codingStats} />
       <RescueTimeBand stats={rescueTimeStats} />
 

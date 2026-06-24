@@ -121,6 +121,10 @@ h2 {
   padding: 22px 0;
 }
 
+.metric-grid--four {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
 .metric-card {
   min-height: 150px;
   border: 1px solid currentColor;
@@ -174,6 +178,13 @@ h2 {
   padding: 34px 0;
 }
 
+.panel-band--fortytwo {
+  border-top: 1px solid rgba(248, 248, 242, 0.12);
+  border-bottom: 1px solid rgba(248, 248, 242, 0.12);
+  margin: 12px 0 4px;
+  padding: 34px 0;
+}
+
 .panel-band--rescuetime {
   border-bottom: 1px solid rgba(248, 248, 242, 0.12);
   margin-bottom: 4px;
@@ -206,6 +217,10 @@ h2 {
   grid-template-columns: repeat(30, minmax(12px, 1fr));
 }
 
+.heatmap--fortytwo {
+  grid-template-columns: repeat(30, minmax(12px, 1fr));
+}
+
 .heatmap-cell {
   display: grid;
   place-items: end center;
@@ -223,6 +238,13 @@ h2 {
   border-color: rgba(187, 154, 247, 0.46);
   background:
     linear-gradient(180deg, rgba(187, 154, 247, 0.96), rgba(224, 175, 104, 0.64)),
+    var(--panel-strong);
+}
+
+.heatmap-cell--fortytwo {
+  border-color: rgba(115, 218, 202, 0.48);
+  background:
+    linear-gradient(180deg, rgba(115, 218, 202, 0.96), rgba(247, 118, 142, 0.62)),
     var(--panel-strong);
 }
 
@@ -324,6 +346,124 @@ h2 {
   place-items: center;
   color: var(--muted);
   font-size: 2rem;
+}
+
+.chart-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.chart-panel {
+  border: 1px solid rgba(248, 248, 242, 0.14);
+  background:
+    linear-gradient(135deg, rgba(248, 248, 242, 0.06), transparent 38%),
+    rgba(23, 24, 33, 0.76);
+  padding: 14px;
+}
+
+.chart-panel--level {
+  box-shadow: 4px 4px 0 rgba(187, 154, 247, 0.34);
+}
+
+.chart-panel--rank {
+  box-shadow: 4px 4px 0 rgba(247, 118, 142, 0.32);
+}
+
+.chart-panel__heading,
+.chart-panel__axis,
+.cohort-caption {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.chart-panel__heading {
+  margin-bottom: 12px;
+}
+
+.chart-panel__heading span,
+.chart-panel__heading strong,
+.chart-panel__axis span,
+.chart-panel__axis strong,
+.cohort-caption span,
+.cohort-caption strong {
+  color: var(--muted);
+  font-size: 0.78rem;
+  line-height: 1.4;
+  text-transform: uppercase;
+}
+
+.chart-panel__heading strong,
+.chart-panel__axis strong,
+.cohort-caption strong {
+  color: var(--ink);
+}
+
+.line-chart {
+  display: block;
+  width: 100%;
+  height: auto;
+  min-height: 176px;
+  border: 1px solid rgba(248, 248, 242, 0.1);
+  background:
+    linear-gradient(var(--grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid) 1px, transparent 1px),
+    rgba(11, 12, 16, 0.58);
+  background-size:
+    18px 18px,
+    18px 18px;
+}
+
+.line-chart__grid {
+  fill: none;
+  stroke: rgba(248, 248, 242, 0.18);
+  stroke-width: 1;
+}
+
+.line-chart__path {
+  fill: none;
+  stroke: var(--mint);
+  stroke-linecap: square;
+  stroke-linejoin: round;
+  stroke-width: 3;
+  filter: drop-shadow(0 0 8px rgba(115, 218, 202, 0.45));
+}
+
+.chart-panel--rank .line-chart__path {
+  stroke: var(--pink);
+  filter: drop-shadow(0 0 8px rgba(247, 118, 142, 0.4));
+}
+
+.line-chart__dot {
+  fill: var(--void);
+  stroke: var(--mint);
+  stroke-width: 3;
+}
+
+.chart-panel--rank .line-chart__dot {
+  stroke: var(--pink);
+}
+
+.line-chart__empty {
+  display: grid;
+  min-height: 176px;
+  place-items: center;
+  border: 1px dashed rgba(248, 248, 242, 0.2);
+  color: var(--muted);
+  font-size: 2rem;
+}
+
+.chart-panel__axis {
+  margin-top: 10px;
+}
+
+.cohort-caption {
+  margin-top: 14px;
+  border: 1px solid rgba(248, 248, 242, 0.14);
+  background: rgba(23, 24, 33, 0.58);
+  padding: 12px 14px;
 }
 
 .rescuetime-grid {
@@ -456,12 +596,19 @@ h2 {
 
   .hero-band,
   .metric-grid,
+  .metric-grid--four,
   .rescuetime-grid,
   .daily-row,
   .split-grid,
+  .chart-grid,
   .split-row,
   .rescuetime-split-row {
     grid-template-columns: 1fr;
+  }
+
+  .cohort-caption {
+    align-items: flex-start;
+    flex-direction: column;
   }
 
   .hero-band {
@@ -489,7 +636,13 @@ h2 {
     grid-auto-rows: 58px;
   }
 
-  .heatmap--coding .heatmap-cell {
+  .heatmap--fortytwo {
+    grid-template-columns: repeat(10, minmax(18px, 1fr));
+    grid-auto-rows: 58px;
+  }
+
+  .heatmap--coding .heatmap-cell,
+  .heatmap--fortytwo .heatmap-cell {
     min-height: 58px;
   }
 }
