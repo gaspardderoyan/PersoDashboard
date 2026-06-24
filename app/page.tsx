@@ -1,5 +1,6 @@
 import { getRecentHealthDailyRecords } from "@/src/health/public-data";
 import type { HealthDailyRecord } from "@/src/health/types";
+import type { TrackedActiveMinuteLevel } from "@/src/health/active-minutes";
 import { getPublicWakaTimeCodingStats } from "@/src/wakatime/public-data";
 import type {
   PublicWakaTimeCodingStats,
@@ -202,15 +203,15 @@ function CodingBand({ stats }: { stats: PublicWakaTimeCodingStats }) {
 
 function ActivityStripe({ record }: { record: HealthDailyRecord }) {
   const levels = [
-    ["light", "#73daca"],
-    ["moderate", "#e0af68"],
-    ["vigorous", "#f7768e"],
-  ] as const;
+    ["moderate", "#e0af68", "moderate"],
+    ["vigorous", "#f7768e", "vigorous"],
+    ["very_active", "#ff9e64", "very active"],
+  ] as const satisfies readonly [TrackedActiveMinuteLevel, string, string][];
   const total = record.activeMinutes.total ?? 0;
 
   return (
     <div className="activity-stripe" aria-label="active minutes by level">
-      {levels.map(([level, color]) => {
+      {levels.map(([level, color, label]) => {
         const minutes = record.activeMinutes.byLevel[level] ?? 0;
         const width = total === 0 ? 0 : (minutes / total) * 100;
 
@@ -221,7 +222,7 @@ function ActivityStripe({ record }: { record: HealthDailyRecord }) {
               backgroundColor: color,
               width: `${width}%`,
             }}
-            title={`${level}: ${minutes}m`}
+            title={`${label}: ${minutes}m`}
           />
         );
       })}
