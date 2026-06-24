@@ -1,6 +1,8 @@
 import { getRecentHealthDailyRecords } from "@/src/health/public-data";
 import type { HealthDailyRecord } from "@/src/health/types";
 import type { TrackedActiveMinuteLevel } from "@/src/health/active-minutes";
+import { getPublicRescueTimeComputerStats } from "@/src/rescuetime/public-data";
+import type { PublicRescueTimeComputerStats } from "@/src/rescuetime/types";
 import { getPublicWakaTimeCodingStats } from "@/src/wakatime/public-data";
 import type {
   PublicWakaTimeCodingStats,
@@ -201,6 +203,90 @@ function CodingBand({ stats }: { stats: PublicWakaTimeCodingStats }) {
   );
 }
 
+function RescueTimeSplit({
+  label,
+  totalSeconds,
+  maxSeconds,
+  color,
+}: {
+  label: string;
+  totalSeconds: number;
+  maxSeconds: number;
+  color: string;
+}) {
+  const width = maxSeconds === 0 ? 0 : (totalSeconds / maxSeconds) * 100;
+
+  return (
+    <div className="rescuetime-split-row">
+      <span>{label}</span>
+      <div className="rescuetime-split-meter" aria-hidden="true">
+        <span
+          style={{
+            width: `${width}%`,
+            backgroundColor: color,
+          }}
+        />
+      </div>
+      <strong>{formatCodingDuration(totalSeconds)}</strong>
+    </div>
+  );
+}
+
+function RescueTimeBand({ stats }: { stats: PublicRescueTimeComputerStats }) {
+  const splitTotal = stats.total.totalSeconds;
+  const splitRows = [
+    {
+      label: "productive",
+      totalSeconds: stats.productive.totalSeconds,
+      color: "var(--mint)",
+    },
+    {
+      label: "distracting",
+      totalSeconds: stats.distracting.totalSeconds,
+      color: "var(--pink)",
+    },
+    {
+      label: "neutral",
+      totalSeconds: stats.neutral.totalSeconds,
+      color: "var(--orange)",
+    },
+  ];
+  const tooltipText = splitRows
+    .map((row) => `${row.label}: ${formatCodingDuration(row.totalSeconds)}`)
+    .join("\n");
+
+  return (
+    <section className="panel-band panel-band--rescuetime">
+      <div className="section-heading">
+        <div>
+          <p className="eyebrow">RescueTime / Computer</p>
+          <h2>computer time</h2>
+        </div>
+        <span>
+          {stats.fetchedAt ? `fetched ${new Date(stats.fetchedAt).toLocaleString("en-GB")}` : "offline"}
+        </span>
+      </div>
+
+      <section className="rescuetime-grid" aria-label="computer time">
+        <article
+          className="metric-card metric-card--rescuetime"
+          aria-describedby="rescuetime-computer-split"
+          tabIndex={0}
+          title={tooltipText}
+        >
+          <span>today</span>
+          <strong>{formatCodingDuration(stats.total.totalSeconds)}</strong>
+          <div id="rescuetime-computer-split" className="rescuetime-split">
+            {splitRows.map((row) => (
+              <RescueTimeSplit key={row.label} maxSeconds={splitTotal} {...row} />
+            ))}
+          </div>
+        </article>
+      </section>
+    </section>
+  );
+}
+
 function ActivityStripe({ record }: { record: HealthDailyRecord }) {
   const levels = [
     ["moderate", "#e0af68", "moderate"],
@@ -282,9 +368,10 @@ function DailyRows({ records }: { records: HealthDailyRecord[] }) {
 }
 
 export default async function Home() {
-  const [records, codingStats] = await Promise.all([
+  const [records, codingStats, rescueTimeStats] = await Promise.all([
     getRecentHealthDailyRecords(),
     getPublicWakaTimeCodingStats(),
+    getPublicRescueTimeComputerStats(),
   ]);
   const latest = records[0];
 
@@ -316,6 +403,7 @@ export default async function Home() {
       </section>
 
       <CodingBand stats={codingStats} />
+      <RescueTimeBand stats={rescueTimeStats} />
 
       <section className="panel-band">
         <div className="section-heading">
