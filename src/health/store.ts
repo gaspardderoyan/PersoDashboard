@@ -1,5 +1,6 @@
 import { neon } from "@neondatabase/serverless";
 import type { Env, HealthDailyRecord, HealthSnapshot, HealthStore } from "./types";
+import { summarizeTrackedActiveMinutes } from "./active-minutes";
 
 type Sql = ReturnType<typeof neon>;
 
@@ -74,14 +75,17 @@ function toNumberRecord(value: unknown): Record<string, number> {
 }
 
 function rowToHealthDailyRecord(row: HealthDailyRow): HealthDailyRecord {
+  const activeMinutesByLevel = toNumberRecord(row.active_minutes_by_level);
+  const activeMinutes =
+    row.active_minutes_total === null && Object.keys(activeMinutesByLevel).length === 0
+      ? { total: null, byLevel: {} }
+      : summarizeTrackedActiveMinutes(activeMinutesByLevel);
+
   return {
     date: toIsoDate(row.date),
     steps: row.steps,
     timeInBedMinutes: row.time_in_bed_minutes,
-    activeMinutes: {
-      total: row.active_minutes_total,
-      byLevel: toNumberRecord(row.active_minutes_by_level),
-    },
+    activeMinutes,
     unavailable: toJsonObject(row.unavailable) as Record<string, string>,
     fetchedAt: toIsoDateTime(row.fetched_at),
     storedAt: toIsoDateTime(row.created_at),

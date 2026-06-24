@@ -1,4 +1,5 @@
 import type { ActiveMinutes, NormalizedValue } from "./types";
+import { summarizeTrackedActiveMinutes, toTrackedActiveMinuteLevel } from "./active-minutes";
 
 function asRecord(value: unknown): Record<string, unknown> | null {
   if (typeof value !== "object" || value === null || Array.isArray(value)) {
@@ -86,13 +87,18 @@ export function normalizeActiveMinutes(response: unknown): NormalizedValue<Activ
         return { value: null, unavailableReason: "invalid_active_minutes_data" };
       }
 
-      const level = typeof record.activityLevel === "string" ? record.activityLevel : "UNKNOWN";
+      const rawLevel = typeof record.activityLevel === "string" ? record.activityLevel : "UNKNOWN";
+      const key = toTrackedActiveMinuteLevel(rawLevel);
+
+      if (!key) {
+        continue;
+      }
+
       const minutes = parseInt64(record.activeMinutesSum);
       if (minutes === null) {
         return { value: null, unavailableReason: "invalid_active_minutes_data" };
       }
 
-      const key = level.toLowerCase();
       byLevel[key] = (byLevel[key] ?? 0) + minutes;
     }
   }
@@ -101,8 +107,7 @@ export function normalizeActiveMinutes(response: unknown): NormalizedValue<Activ
     return { value: null, unavailableReason: "no_active_minutes_data" };
   }
 
-  const total = Object.values(byLevel).reduce((sum, minutes) => sum + minutes, 0);
-  return { value: { total, byLevel } };
+  return { value: summarizeTrackedActiveMinutes(byLevel) };
 }
 
 export function normalizeTimeInBed(response: unknown): NormalizedValue<number> {

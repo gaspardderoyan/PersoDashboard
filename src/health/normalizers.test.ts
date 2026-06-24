@@ -32,7 +32,7 @@ describe("normalizeSteps", () => {
 });
 
 describe("normalizeActiveMinutes", () => {
-  it("returns totals and minutes by activity level", () => {
+  it("returns merged totals for tracked activity levels only", () => {
     expect(
       normalizeActiveMinutes({
         rollupDataPoints: [
@@ -41,6 +41,8 @@ describe("normalizeActiveMinutes", () => {
               activeMinutesRollupByActivityLevel: [
                 { activityLevel: "LIGHT", activeMinutesSum: "12" },
                 { activityLevel: "MODERATE", activeMinutesSum: "20" },
+                { activityLevel: "VIGOROUS", activeMinutesSum: "8" },
+                { activityLevel: "VERY_ACTIVE", activeMinutesSum: "4" },
               ],
             },
           },
@@ -50,7 +52,32 @@ describe("normalizeActiveMinutes", () => {
       value: {
         total: 32,
         byLevel: {
-          light: 12,
+          moderate: 20,
+          vigorous: 8,
+          very_active: 4,
+        },
+      },
+    });
+  });
+
+  it("ignores malformed light activity values", () => {
+    expect(
+      normalizeActiveMinutes({
+        rollupDataPoints: [
+          {
+            activeMinutes: {
+              activeMinutesRollupByActivityLevel: [
+                { activityLevel: "LIGHT", activeMinutesSum: "bad" },
+                { activityLevel: "MODERATE", activeMinutesSum: "20" },
+              ],
+            },
+          },
+        ],
+      }),
+    ).toEqual({
+      value: {
+        total: 20,
+        byLevel: {
           moderate: 20,
         },
       },
@@ -79,7 +106,7 @@ describe("normalizeActiveMinutes", () => {
           {
             activeMinutes: {
               activeMinutesRollupByActivityLevel: [
-                { activityLevel: "LIGHT", activeMinutesSum: "bad" },
+                { activityLevel: "MODERATE", activeMinutesSum: "bad" },
               ],
             },
           },

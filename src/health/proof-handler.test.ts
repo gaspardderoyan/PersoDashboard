@@ -30,6 +30,8 @@ function createMockClient(): GoogleHealthClient {
               activeMinutesRollupByActivityLevel: [
                 { activityLevel: "LIGHT", activeMinutesSum: "10" },
                 { activityLevel: "MODERATE", activeMinutesSum: "32" },
+                { activityLevel: "VIGOROUS", activeMinutesSum: "8" },
+                { activityLevel: "VERY_ACTIVE", activeMinutesSum: "4" },
               ],
             },
           },
@@ -85,10 +87,11 @@ describe("handleHealthProofRequest", () => {
       steps: 1234,
       timeInBedMinutes: 464,
       activeMinutes: {
-        total: 42,
+        total: 44,
         byLevel: {
-          light: 10,
           moderate: 32,
+          vigorous: 8,
+          very_active: 4,
         },
       },
       unavailable: {},
